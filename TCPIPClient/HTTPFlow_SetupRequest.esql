@@ -1,0 +1,33 @@
+
+
+CREATE FUNCTION javaLangSystemGetenv( IN name CHARACTER )
+	RETURNS CHARACTER
+	LANGUAGE JAVA
+	EXTERNAL NAME "java.lang.System.getenv";
+
+CREATE COMPUTE MODULE HTTPFlow_SetupRequest
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		DECLARE hostToUse CHARACTER;
+        SET hostToUse = javaLangSystemGetenv('TCPIPCLIENT_HOST');
+        IF hostToUse IS NULL THEN
+        	SET hostToUse = 'localhost';
+        END IF;
+        
+		DECLARE portToUse CHARACTER;
+        SET portToUse = javaLangSystemGetenv('TCPIPCLIENT_PORT');
+        IF portToUse IS NULL THEN
+        	SET portToUse = '12345';
+        END IF;
+		
+		LOG EVENT CATALOG 'BIPmsgs' MESSAGE 8099 VALUES('Making TCPIP connection', hostToUse, portToUse);
+		
+		SET OutputLocalEnvironment.Destination.TCPIP.Output.Hostname = hostToUse;
+		SET OutputLocalEnvironment.Destination.TCPIP.Output.Port = portToUse;
+		SET OutputLocalEnvironment.TCPIP.Receive.Hostname = hostToUse;
+		SET OutputLocalEnvironment.TCPIP.Receive.Port = portToUse;
+		
+		RETURN TRUE;
+	END;
+END MODULE;

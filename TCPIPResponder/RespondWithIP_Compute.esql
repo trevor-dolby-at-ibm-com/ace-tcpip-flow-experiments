@@ -1,0 +1,11 @@
+
+
+CREATE COMPUTE MODULE RespondWithIP_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot.JSON.Data.tcpipClientIPAddress = InputLocalEnvironment.TCPIP.Input.ConnectionDetails.ClientDetails.Address;
+		LOG EVENT CATALOG 'BIPmsgs' MESSAGE 8099 VALUES('Received TCPIP connection', 'Address', InputLocalEnvironment.TCPIP.Input.ConnectionDetails.ClientDetails.Address);
+		
+		RETURN TRUE;
+	END;
+END MODULE;
