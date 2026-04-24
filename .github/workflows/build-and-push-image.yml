@@ -48,20 +48,14 @@ jobs:
           ibmint optimize server --work-dir /tmp/ace-work-dir --disable NodeJS
 
       - name: Create server contents
+        shell: bash
         run: |
-          echo Env dump
-
-          env | sort
-        
-          # checkout v4 does this and the removes it
-          git config --global --add safe.directory $PWD
-
           set -e # Fail on error
 
           mkdir /tmp/build
           
           export DATE=$(date '+%Y%m%d%H%M%S')
-          export COMMIT=$(git log -1 --pretty=%h)
+          export COMMIT=${GITHUB_SHA:0:8}
           export TAG="$DATE"-"$COMMIT"
           echo Setting container tag to "$TAG"
           echo "$TAG" > /tmp/build/image-tag.txt
