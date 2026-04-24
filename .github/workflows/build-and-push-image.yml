@@ -45,7 +45,7 @@ jobs:
           echo Building application
           echo ========================================================================
           ibmint deploy --input-path . --output-work-directory /tmp/ace-work-dir --project TCPIPResponder --project TCPIPClient
-          ibmint optimize server --work-dir /tmp/ace-work-dir
+          ibmint optimize server --work-dir /tmp/ace-work-dir --disable NodeJS
 
       - name: Create server contents
         run: |
@@ -80,8 +80,8 @@ jobs:
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          CP_USERNAME: ${{ secrets.CP_USERNAME }}
-          CP_PASSWORD: ${{ secrets.CP_PASSWORD }}
+          #CP_USERNAME: ${{ secrets.CP_USERNAME }}
+          #CP_PASSWORD: ${{ secrets.CP_PASSWORD }}
         run: |
           cd /tmp/build
           set -e
@@ -90,7 +90,7 @@ jobs:
           echo Logging in 
           echo ========================================================================
           echo "${DOCKER_PASSWORD}" | crane auth login docker.io --username ${DOCKER_USERNAME} --password-stdin
-          echo "${CP_PASSWORD}" | crane auth login cp.icr.io --username ${CP_USERNAME} --password-stdin
+          #echo "${CP_PASSWORD}" | crane auth login cp.icr.io --username ${CP_USERNAME} --password-stdin
           echo ========================================================================
           echo Appending server contents tar file to create new image
           echo ========================================================================
