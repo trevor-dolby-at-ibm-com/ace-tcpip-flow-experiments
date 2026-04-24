@@ -49,6 +49,10 @@ jobs:
 
       - name: Create server contents
         run: |
+          echo Env dump
+
+          env | sort
+        
           # checkout v4 does this and the removes it
           git config --global --add safe.directory $PWD
 
