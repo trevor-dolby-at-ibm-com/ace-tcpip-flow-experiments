@@ -1,0 +1,97 @@
+# CI build to create a container image for the applications
+
+name: Build and Push Image
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  # Disable temporarily during workflow development
+  #push:
+  #  branches: [ main, minikube-cp4i ]
+  #pull_request:
+  #  branches: [ main, minikube-cp4i ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    container: 
+      image: tdolby/experimental:ace-minimal-13.0.7.0-alpine
+      env:
+        LICENSE: accept
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+          
+      - name: Build the application and test it
+        shell: bash
+        run: |
+          echo "Loading ACE profile"
+          export LICENSE=accept
+          set +e # Don't fail on error if the profile has already been loaded
+          . /opt/ibm/ace-13/server/bin/mqsiprofile
+          set -e # Fail on error - this must be done after the profile in case the container has the profile loaded already
+
+          echo ========================================================================
+          echo Setting up work directory
+          echo ========================================================================
+          mqsicreateworkdir /tmp/ace-work-dir
+          
+          echo ========================================================================
+          echo Building application
+          echo ========================================================================
+          ibmint deploy --input-path . --output-work-directory /tmp/ace-work-dir --project TCPIPResponder --project TCPIPClient
+          ibmint optimize server --work-dir /tmp/ace-work-dir
+
+      - name: Create server contents
+        run: |
+          # checkout v4 does this and the removes it
+          git config --global --add safe.directory $PWD
+
+          set -e # Fail on error
+
+          mkdir /tmp/build
+          
+          export DATE=$(date '+%Y%m%d%H%M%S')
+          export COMMIT=$(git log -1 --pretty=%h)
+          export TAG="$DATE"-"$COMMIT"
+          echo Setting container tag to "$TAG"
+          echo "$TAG" > /tmp/build/image-tag.txt
+          
+          cd /tmp/build
+
+          # Take only what we need
+          mkdir -p home/aceuser/ace-server
+          mv /tmp/ace-work-dir/run home/aceuser/ace-server/
+          mv /tmp/ace-work-dir/server.components.yaml home/aceuser/ace-server/
+          chmod -R 777 .
+          echo ========================================================================
+          echo Create tar file of server contents
+          echo ========================================================================
+          # Must have the full directory tree from / in the tar file
+          tar -cvzf /tmp/build/crane-append-file.tar.gz home
+
+      - name: Create container image
+        shell: bash
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          CP_USERNAME: ${{ secrets.CP_USERNAME }}
+          CP_PASSWORD: ${{ secrets.CP_PASSWORD }}
+        run: |
+          cd /tmp/build
+          set -e
+          set -x
+          echo ========================================================================
+          echo Logging in 
+          echo ========================================================================
+          echo "${DOCKER_PASSWORD}" | crane auth login docker.io --username ${DOCKER_USERNAME} --password-stdin
+          echo "${CP_PASSWORD}" | crane auth login cp.icr.io --username ${CP_USERNAME} --password-stdin
+          echo ========================================================================
+          echo Appending server contents tar file to create new image
+          echo ========================================================================
+          crane append -b tdolby/experimental:ace-minimal-13.0.7.0-alpine -f /tmp/build/crane-append-file.tar.gz -t tdolby/experimental:ace-tcpip-flow-experiments-`cat /tmp/build/image-tag.txt`          
